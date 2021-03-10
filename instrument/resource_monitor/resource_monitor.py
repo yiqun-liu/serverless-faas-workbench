@@ -6,7 +6,8 @@ import json
 import threading
 
 # keys to monitor (provided by psutil)
-cpu_keys = ['num_ctx_switches', 'cpu_percent', 'cpu_times', 'threads', 'num_threads']
+# 'num_ctx_switches' would be useful but seems not to be supported by GCP
+cpu_keys = ['cpu_percent', 'cpu_times', 'threads', 'num_threads']
 memory_keys = ['memory_percent', 'memory_full_info']
 disk_keys = ['num_fds', 'io_counters']
 session_keys = ['connections']
@@ -46,7 +47,8 @@ class ResourceMonitorThread(threading.Thread):
 
         # note: no need for synchronization: there is only one modifier
         self.cloud_service_invocation_count = 0
-        self.file_recv_bytes = 0
+        self.bytes_download = 0
+        self.bytes_upload = 0
         self.create_time = self.process_util.create_time()
 
         # the aggregated results
@@ -58,8 +60,11 @@ class ResourceMonitorThread(threading.Thread):
     def record_service_invocation(self):
         self.cloud_service_invocation_count += 1
 
-    def record_file_recv(self, bytes_recv):
-        self.file_recv_bytes += bytes_recv
+    def record_download(self, num_bytes):
+        self.bytes_download += num_bytes
+
+    def record_upload(self, num_bytes):
+        self.bytes_upload += num_bytes
 
     def signal_terminate(self):
         self._running = False
@@ -72,9 +77,12 @@ class ResourceMonitorThread(threading.Thread):
         sample['cpu']['elapsed_time'] = time.time() - self.create_time
         sample['memory'] = {key: raw_sample[key] for key in memory_keys}
         sample['disk'] = {key: raw_sample[key] for key in disk_keys}
-        sample['network-session'] = list(map(lambda x: x['status'], raw_sample['connections']))
+        sample['network'] = {
+            'session': list(map(lambda x: x.status, raw_sample['connections'])),
+            'download': self.bytes_download,
+            'upload': self.bytes_upload
+        }
         sample['cloud-service-trigger'] = self.cloud_service_invocation_count
-        sample['cloud-file-received'] = self.file_recv_bytes
 
         return sample
 
