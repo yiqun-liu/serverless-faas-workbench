@@ -4,15 +4,35 @@ A simple resource utilization monitor module.
 
 ## Motivation
 
-Monitor the resource utilization, specially from a cloud hypervisor's perspective. Since that we do not have access to the platform but we do have access to workload source code, we try to emulate the monitor process, using a thread running in user space.
+Monitor the resource utilization, specially from a cloud hypervisor's perspective. Given that we do not have access to the platform, but we do have access to workload source code, we try to emulate the monitor process, using a thread running in user space.
 
-## Monitor
+## Metrics
 
-At current stage we consider hardware resource consumption and cloud service invocations.
+Here we list the some of the metrics we are most interested in. Some fine-grained information which is not accessible to the platform-side monitor is intentionally ignored
 
-Hardware resources are monitored automatically, through `psutil` package, which extracts most information from `/proc/pid/` directory.
+* processor
+  * CPU time
+  * CPU percentage
+  * thread information
+* memory
+  * physical memory in-use
+  * virtual memory in-use
+  * number of dirty pages
+* disk
+  * number of I/O operations (read and write)
+  * number of bytes transferred (read and write)
+* network
+  * socket state related to the process (UDP / TCP, which state it is in if it is TCP)
+  * number of bytes uploaded as file
+  * number of bytes downloaded as file
+* cloud services
+  * number of cloud service API access
 
-For Cloud services, the workload function has to explicitly call methods of this module and record the activity.
+## Implementation
+
+Hardware resources are monitored automatically: per-process information is available at `/proc/pid/` directory. A monitor thread periodically samples such information (through `psutil` package, which is a neat wrapper of these system information.)
+
+For Cloud services and network usage, per-process information is not exposed by the operating system. The workload function has to explicitly call methods of our module and record the utilization.
 
 ## Usage
 
@@ -52,7 +72,9 @@ monitor_thread.record_service_invocation()
 monitor_thread.record_download(os.path.getsize(download_path))
 ```
 
+By default, the record will be serialized as JSON and written to standard output. It is also accessible through `ResourceMonitorThread.summary`.
 
+Our local test, [monitor-test.py](monitor-test.py) could serve as an example.
 
 ## Limitations
 
