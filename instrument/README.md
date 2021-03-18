@@ -81,6 +81,7 @@ Our local test, [monitor-test.py](monitor-test.py) could serve as an example.
 * network information tracked is limited (only information about sockets)
 * the thread might slow down some workloads significantly
 * fine-grained instrument codes need to be inserted into function source code, manually
+* monitor methods are not thread-safe: need caller-side synchronization if used to monitor multi-threaded program
 
 ## Experiences
 
